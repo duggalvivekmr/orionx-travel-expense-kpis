@@ -12,10 +12,10 @@ OUTPUT_PATH = Path("data/feature/expense_features.parquet")
 # -------------------------------
 # Business thresholds
 # -------------------------------
-HIGH_AMOUNT_THRESHOLD = 1000  #reporting currency
-VERY_HIGH_AMOUNT_THRESHOLD = 3500 # reporting currency
-LATE_SUBMISSION_DAYS = 30
-FX_IMPACT_THRESHOLD = 0.05   #5%
+HIGH_AMOUNT_THRESHOLD = 2200  #reporting currency
+VERY_HIGH_AMOUNT_THRESHOLD = 3000 # reporting currency
+LATE_SUBMISSION_DAYS = 12
+FX_IMPACT_THRESHOLD = 0.44   # ~90th percentile of abs fx variance
 
 # -------------------------------
 # Expense mapping logic
@@ -111,8 +111,8 @@ def feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
     # -----------------------------------------------------------
     df["submission_delay_bucket"] = pd.cut(
         df["submission_delay_days"],
-        bins=[-1, 7, 14, 30, np.inf],
-        labels=["0-7 days", "8-14 days", "15-30 days", "30+ days"],   
+        bins=[-1, 7, 14, np.inf],
+        labels=["0-7 days", "8-11 days", "12-14 days"],   
     )
 
     df["is_late_submission"] = (
@@ -138,21 +138,6 @@ def feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
     # Internal = not customer-facing
     df["is_internal"] = ~df["is_customer_facing"]
 
-    # ----------------------------------------------
-    # Policy risk indicator
-    # ----------------------------------------------
-    df["is_high_amount"] = (
-        df["expense_approved_amount_rpt"] > HIGH_AMOUNT_THRESHOLD
-    )
-
-    df["is_very_high_amount"] = (
-        df["expense_approved_amount_rpt"] > VERY_HIGH_AMOUNT_THRESHOLD
-    )
-
-    df["is_policy_risk"] = (
-        df["is_late_submission"] | df["is_high_amount"]
-    )
-
     # ---------------------------------------------
     # FX Insights
     # ---------------------------------------------
@@ -162,8 +147,8 @@ def feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     df["fx_variance_pct"] = np.where(
-        df["expense_approved_amount"] != 0,
-        df["fx_variance"] / df["expense_approved_amount"],
+        df["expense_approved_amount_rpt"] != 0,
+        df["fx_variance"] / df["expense_approved_amount_rpt"],
         0,
     )
 
@@ -174,6 +159,20 @@ def feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
     print("Feature engineering completed")
     return df
 
+    # -------------------------------------------
+    # Policy Risk Indicator
+    # -------------------------------------------
+    df["is_high_amount"] = (
+        df["expense_approved_amount_rpt"] > HIGH_AMOUNT_THRESHOLD
+    )
+
+    df["is_very_high_amount"] = (
+        df["expense_approved_amount_rpt"] > VERY_HIGH_AMOUNT_THRESHOLD
+    )
+
+    df["is_policy_risk"] = (
+        df["is_late_submission"] | df["is_high_amount"] | df["is_fx_impactful"]
+    )
 # -----------------------------------------------
 # Runner
 # -----------------------------------------------
