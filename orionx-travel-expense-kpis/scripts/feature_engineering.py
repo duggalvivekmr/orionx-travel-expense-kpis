@@ -156,9 +156,6 @@ def feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
         df["fx_variance_pct"].abs() > FX_IMPACT_THRESHOLD
     )
 
-    print("Feature engineering completed")
-    return df
-
     # -------------------------------------------
     # Policy Risk Indicator
     # -------------------------------------------
@@ -172,7 +169,10 @@ def feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
 
     df["is_policy_risk"] = (
         df["is_late_submission"] | df["is_high_amount"] | df["is_fx_impactful"]
-    )
+    ).astype(int)
+    
+    print("Feature engineering completed")
+    return df
 # -----------------------------------------------
 # Runner
 # -----------------------------------------------
