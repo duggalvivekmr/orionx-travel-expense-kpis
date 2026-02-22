@@ -208,7 +208,7 @@ def apply_expense_classification(df: pd.DataFrame) -> pd.DataFrame:
 
     df["is_travel"] = True
     df["is_customer_facing"] = True
-    df["expense_category"] = "Other"
+    df["category"] = "Other"
 
     for expense_type, rules in EXPENSE_CLASSIFICATION_MAP.items():
         mask = df["expense_type"] == expense_type
@@ -220,7 +220,7 @@ def apply_expense_classification(df: pd.DataFrame) -> pd.DataFrame:
             df.loc[mask, "is_customer_facing"] = rules["is_customer_facing"]
 
         if "category" in rules:
-            df.loc[mask, "expense_category"] = rules["category"]
+            df.loc[mask, "category"] = rules["category"]
     return df
 # --------------------------------
 # Feature engineering logic
