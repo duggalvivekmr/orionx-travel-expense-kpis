@@ -18,53 +18,210 @@ LATE_SUBMISSION_DAYS = 12
 FX_IMPACT_THRESHOLD = 0.44   # ~90th percentile of abs fx variance
 
 # -------------------------------
-# Expense mapping logic
+# Expense classification mapping
 # -------------------------------
+
 EXPENSE_CLASSIFICATION_MAP = {
-    # Airfare
-    "Airfare – Company Event": {"is_customer_facing": False},
-    "Airfare – Conference": {"is_customer_facing": False},
-    "Airfare – Customer Facing": {"is_customer_facing": True},
-    "Airfare – Internal": {"is_customer_facing": False},
-    "Airfare – Offsite": {"is_customer_facing": False},
 
-    # Hotel
-    "Hotel – Conference": {"is_customer_facing": False},
-    "Hotel – Customer Facing": {"is_customer_facing": True},
-    "Hotel – Internal": {"is_customer_facing": False},
+    # --------------------------------------------------
+    # AIRFARE (Travel)
+    # --------------------------------------------------
+    "Airfare – Company Event": {
+        "is_travel": True,
+        "is_customer_facing": False,
+        "category": "Airfare"
+    },
+    "Airfare – Conference": {
+        "is_travel": True,
+        "is_customer_facing": False,
+        "category": "Airfare"
+    },
+    "Airfare – Customer Facing": {
+        "is_travel": True,
+        "is_customer_facing": True,
+        "category": "Airfare"
+    },
+    "Airfare – Internal": {
+        "is_travel": True,
+        "is_customer_facing": False,
+        "category": "Airfare"
+    },
+    "Airfare – Offsite": {
+        "is_travel": True,
+        "is_customer_facing": False,
+        "category": "Airfare"
+    },
 
-    # Meals
-    "Meal – Conference": {"is_customer_facing": False},
-    "Meal – Customer Facing": {"is_customer_facing": True},
-    "Meal – Internal": {"is_customer_facing": False},
+    # --------------------------------------------------
+    # HOTEL (Travel)
+    # --------------------------------------------------
+    "Hotel – Conference": {
+        "is_travel": True,
+        "is_customer_facing": False,
+        "category": "Hotel"
+    },
+    "Hotel – Customer Facing": {
+        "is_travel": True,
+        "is_customer_facing": True,
+        "category": "Hotel"
+    },
+    "Hotel – Internal": {
+        "is_travel": True,
+        "is_customer_facing": False,
+        "category": "Hotel"
+    },
 
-    # Ground / Transportation
-    "Ground Transportation – Customer Facing": {"is_customer_facing": True},
-    "Transportation – Internal": {"is_customer_facing": False},
-    "Car – Internal": {"is_customer_facing": False},
-    "Fuel / Gas Charges": {"is_customer_facing": False},
-    "Mileage – Personal Car": {"is_customer_facing": False},
-    "Parking and Tolls": {"is_customer_facing": False},
+    # --------------------------------------------------
+    # MEALS (Travel)
+    # --------------------------------------------------
+    "Meal – Conference": {
+        "is_travel": True,
+        "is_customer_facing": False,
+        "category": "Meal"
+    },
+    "Meal – Customer Facing": {
+        "is_travel": True,
+        "is_customer_facing": True,
+        "category": "Meal"
+    },
+    "Meal – Internal": {
+        "is_travel": True,
+        "is_customer_facing": False,
+        "category": "Meal"
+    },
 
-    # Other non-travel
-    "Bank / FX Fees": {"is_customer_facing": False},
-    "Computer/Laptop Accessories": {"is_customer_facing": False},
-    "Donation": {"is_customer_facing": False},
-    "Education": {"is_customer_facing": False},
-    "Entertainment": {"is_customer_facing": False},
-    "Gifts": {"is_customer_facing": False},
-    "Internet": {"is_customer_facing": False},
-    "Office Expense": {"is_customer_facing": False},
-    "Relocation Expense": {"is_customer_facing": False},
-    "Seminars, & Conferences": {"is_customer_facing": False},
-    "Software and Software Subscription": {"is_customer_facing": False},
-    "Taxable Award": {"is_customer_facing": False},
+    # --------------------------------------------------
+    # GROUND / TRANSPORTATION (Travel)
+    # --------------------------------------------------
+    "Ground Transportation – Customer Facing": {
+        "is_travel": True,
+        "is_customer_facing": True,
+        "category": "Ground Transport"
+    },
+    "Transportation – Internal": {
+        "is_travel": True,
+        "is_customer_facing": False,
+        "category": "Ground Transport"
+    },
+    "Car – Internal": {
+        "is_travel": True,
+        "is_customer_facing": False,
+        "category": "Ground Transport"
+    },
+    "Fuel / Gas Charges": {
+        "is_travel": True,
+        "is_customer_facing": False,
+        "category": "Ground Transport"
+    },
+    "Mileage – Personal Car": {
+        "is_travel": True,
+        "is_customer_facing": False,
+        "category": "Ground Transport"
+    },
+    "Parking and Tolls": {
+        "is_travel": True,
+        "is_customer_facing": False,
+        "category": "Ground Transport"
+    },
 
-    # Travel utilities
-    "Travel Internet": {"is_customer_facing": False}
+    # --------------------------------------------------
+    # NON-TRAVEL EXPENSES
+    # --------------------------------------------------
+    "Bank / FX Fees": {
+        "is_travel": False,
+        "is_customer_facing": False,
+        "category": "Financial Charges"
+    },
+    "Computer/Laptop Accessories": {
+        "is_travel": False,
+        "is_customer_facing": False,
+        "category": "IT Equipment"
+    },
+    "Donation": {
+        "is_travel": False,
+        "is_customer_facing": False,
+        "category": "Other"
+    },
+    "Education": {
+        "is_travel": False,
+        "is_customer_facing": False,
+        "category": "Training"
+    },
+    "Entertainment": {
+        "is_travel": False,
+        "is_customer_facing": False,
+        "category": "Entertainment"
+    },
+    "Gifts": {
+        "is_travel": False,
+        "is_customer_facing": False,
+        "category": "Other"
+    },
+    "Internet": {
+        "is_travel": False,
+        "is_customer_facing": False,
+        "category": "Utilities"
+    },
+    "Office Expense": {
+        "is_travel": False,
+        "is_customer_facing": False,
+        "category": "Office"
+    },
+    "Relocation Expense": {
+        "is_travel": False,
+        "is_customer_facing": False,
+        "category": "HR"
+    },
+    "Seminars, & Conferences": {
+        "is_travel": False,
+        "is_customer_facing": False,
+        "category": "Training"
+    },
+    "Software and Software Subscription": {
+        "is_travel": False,
+        "is_customer_facing": False,
+        "category": "Software"
+    },
+    "Taxable Award": {
+        "is_travel": False,
+        "is_customer_facing": False,
+        "category": "HR"
+    },
+
+    # --------------------------------------------------
+    # TRAVEL UTILITIES (Travel)
+    # --------------------------------------------------
+    "Travel Internet": {
+        "is_travel": True,
+        "is_customer_facing": False,
+        "category": "Travel Utility"
+    }
 }
 
+# ----------------------------------------------------------
+# Expense classification function
+# ----------------------------------------------------------
 
+def apply_expense_classification(df: pd.DataFrame) -> pd.DataFrame:
+
+    df = df.copy()
+
+    df["is_travel"] = True
+    df["is_customer_facing"] = True
+    df["expense_category"] = "Other"
+
+    for expense_type, rules in EXPENSE_CLASSIFICATION_MAP.items():
+        mask = df["expense_type"] == expense_type
+
+        if "is_travel" in rules:
+            df.loc[mask, "is_travel"] = rules["is_travel"]
+
+        if "is_customer_facing" in rules:
+            df.loc[mask, "is_customer_facing"] = rules["is_customer_facing"]
+
+        if "category" in rules:
+            df.loc[mask, "expense_category"] = rules["category"]
+    return df
 # --------------------------------
 # Feature engineering logic
 # --------------------------------
@@ -111,8 +268,8 @@ def feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
     # -----------------------------------------------------------
     df["submission_delay_bucket"] = pd.cut(
         df["submission_delay_days"],
-        bins=[-1, 7, 14, np.inf],
-        labels=["0-7 days", "8-11 days", "12-14 days"],   
+        bins=[-1, 7, 11, np.inf],
+        labels=["0-7 days", "8-11 days", "12+ days"],   
     )
 
     df["is_late_submission"] = (
@@ -122,20 +279,9 @@ def feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
     # -----------------------------------------------------------
     # Spend semantics (mapping - driven)
     # -----------------------------------------------------------
- 
-    # Travel vs Non-Travel (system-controlled)
-    df["is_travel_expense"] = (
-        df["parent_expense_type"].str.strip().str.lower() == "travel"
-    )
 
-    # Customer-facing vs Internal (explicit mapping)
-    df["is_customer_facing"] = df["expense_type"].map(
-        lambda x: EXPENSE_CLASSIFICATION_MAP.get(
-            x, {"is_customer_facing": False}
-        )["is_customer_facing"]
-    )
-
-    # Internal = not customer-facing
+    # Spend semantics (mapping - driven)
+    df = apply_expense_classification(df)
     df["is_internal"] = ~df["is_customer_facing"]
 
     # ---------------------------------------------
@@ -169,7 +315,7 @@ def feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
 
     df["is_policy_risk"] = (
         df["is_late_submission"] | df["is_high_amount"] | df["is_fx_impactful"]
-    ).astype(int)
+    )
     
     print("Feature engineering completed")
     return df
