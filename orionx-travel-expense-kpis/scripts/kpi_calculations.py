@@ -11,62 +11,43 @@ class ExpenseKPICalculator:
     def __init__(self, df: pd.DataFrame):
         self.df = df.copy() 
 
-    # --------------------------------------
-    # Average Approval Time
-    # --------------------------------------   
-    def avg_approval_days(self):
-        return self.df["end_to_end_approval_days"].mean()
-    # ------------------------
-    # Median Approval Time
-    # -----------------------
-    def median_approval_days(self):
-        return self.df["end_to_end_approval_days"].median()
-    # ----------------
-    # SLA Breach Rate
-    # -----------------
-    def approval_sla_breach_rate(self):
-        return (
-            (self.df["end_to_end_approval_days"] > APPROVAL_SLA_DAYS)
-            .mean()*100
-        )
-    # ----------------------------------------------
-    # Approval Stage Breakdown (Bottleneck Analysis)
-    # ----------------------------------------------
-    def approval_stage_breakdown(self):
+    # -------------------------------
+    # Build KPI summary table
+    # -------------------------------
+ 
+    def executive_summary(self):
+
         return pd.DataFrame([{
-            "submission_to_manager_avg":
-                self.df["submission_to_manager_days"].mean(),
-            "manager_to_accounting_avg":
-                self.df["manager_to_accounting_days"].mean(),
+            "total_expense": self.total_expense(),
+            "total_transactions": self.total_transactions(),
+            "avg_expense": self.avg_expense(),
+            "policy_risk_rate": self.policy_risk_rate(),
+            "sla_breach_rate": self.approval_sla_breach_rate(),
+            "avg_approval_days": self.avg_approval_days(),
+
+            # Extract scalar values from DataFrame KPIs
+            "late_submission_rate_pct":
+                self.late_submission_pct()["late_submission_pct"].iloc[0],
+
+            "fx_impact_rate_pct":
+                self.fx_impact_pct()["fx_impactful_pct"].iloc[0],
+
+            "expense_per_active_employee":
+                self.expense_per_active_employee()["expense_per_active_employee"].iloc[0],
+
+            "travel_expense_pct":
+                self.travel_expense_pct()["travel_expense_pct"].iloc[0],
+
+            "customer_expense_pct":
+                self.customer_facing_pct()["customer_facing_pct"].iloc[0],
+
+            "high_risk_expense_pct":
+                self.high_risk_expense_pct()["high_risk_expense_pct"].iloc[0],
         }])
-    # ------------------------------
-    # Approval Time by Department
-    # ------------------------------
-    def approval_time_by_department(self):
-        return (
-            self.df
-            .groupby("department_name")["end_to_end_approval_days"]
-            .mean()
-            .reset_index()
-            .sort_values("end_to_end_approval_days", ascending=False)
-        )
-    # --------------------------------------
-    # Executive KPIS
-    # --------------------------------------
-    def total_expense(self):
-        return self.df["expense_approved_amount_rpt"].sum()
-    
-    def total_transactions(self):
-        return len(self.df)
-    
-    def avg_expense(self):
-        return self.df["expense_approved_amount_rpt"].mean()
-    
-    def policy_risk_rate(self):
-        return self.df["is_policy_risk"].mean() *100
-    # ----------------
+
+    # -----------------------------------
     # MoM Growth %
-    # ----------------    
+    # -----------------------------------
     def calculate_mom_growth (self):
             monthly = (
                 self.df.groupby(["transaction_year", "transaction_month"])["expense_approved_amount_rpt"]
@@ -79,7 +60,8 @@ class ExpenseKPICalculator:
                 monthly["expense_approved_amount_rpt"].pct_change()*100
             )
 
-            return monthly    
+            return monthly 
+
     # ---------------------
     # YTD Expense
     # ---------------------
@@ -98,6 +80,7 @@ class ExpenseKPICalculator:
         )
 
         return monthly
+    
     # -------------------------
     # Travel Expense %
     # -------------------------
@@ -118,6 +101,7 @@ class ExpenseKPICalculator:
         return pd.DataFrame({
         'customer_facing_pct': [(customer / total) * 100]
     }) 
+
     # -------------------------------
     # Expense per Active Employee
     # -------------------------------
@@ -138,12 +122,10 @@ class ExpenseKPICalculator:
         return pd.DataFrame({
         'high_risk_expense_pct': [(risky / total) * 100]
     })
-    # ----------------------------------------------
-    # TIME-BASED KPIs
-    # ----------------------------------------------
 
-    # ------------------ Rolling 3 Month ------------------
-
+    # -----------------------------------
+    # Rolling 3 Months
+    # -----------------------------------
     def rolling_3m(self):
         monthly = (
             self.df.groupby(['transaction_year','transaction_month'])['expense_approved_amount_rpt']
@@ -167,9 +149,28 @@ class ExpenseKPICalculator:
             .reset_index()
             .sort_values(["transaction_year","transaction_quarter"])
     )
-    # ----------------------------------------
+
+    # -------------------------------
+    # Monthly Trend KPIs
+    # -------------------------------
+
+    def monthly_trend(self):
+        df = self.df.copy()
+        df["year_month"] = pd.to_datetime(
+                df["transaction_date"]
+        ).dt.to_period("M")
+
+        return(
+            df
+            .groupby("year_month")["expense_approved_amount_rpt"]
+            .sum()
+            .reset_index()
+            .sort_values("year_month")
+        )
+
+    # --------------------------------
     # Travel Dimension KPIs
-    # ----------------------------------------
+    # --------------------------------
 
     def travel_split(self):
         return (
@@ -209,9 +210,9 @@ class ExpenseKPICalculator:
         )
 
         return matrix
-    # ----------------------------------------------
+    # -------------------------------
     # Category KPI
-    # ----------------------------------------------
+    # -------------------------------
     def category_spend(self):
         return (
             self.df
@@ -268,13 +269,58 @@ class ExpenseKPICalculator:
             .sum()
             .reset_index()
     )
-    # ------------------------------------------------
-    # Policy / Risk KPIs
-    # ------------------------------------------------
 
-    def high_risk_transactions(self):
-        return self.df[self.df["is_policy_risk"]]
-    # --------------- FX Impact ----------------------
+    # ----------------------------------------------
+    # Approval Stage Breakdown (Bottleneck Analysis)
+    # ----------------------------------------------
+    def approval_stage_breakdown(self):
+        return pd.DataFrame([{
+            "submission_to_manager_avg":
+                self.df["submission_to_manager_days"].mean(),
+            "manager_to_accounting_avg":
+                self.df["manager_to_accounting_days"].mean(),
+        }])
+    # ------------------------------
+    # Approval Time by Department
+    # ------------------------------
+    def approval_time_by_department(self):
+        return (
+            self.df
+            .groupby("department_name")["end_to_end_approval_days"]
+            .mean()
+            .reset_index()
+            .sort_values("end_to_end_approval_days", ascending=False)
+        )
+    
+    # -------------------------------
+    # % Late Submission
+    # -------------------------------
+    def late_submission_pct(self):
+        pct = self.df['is_late_submission'].mean() * 100
+
+        return pd.DataFrame({
+        'late_submission_pct': [pct]
+    })
+    # -------------------------------
+    # Avg Approval Time
+    # -------------------------------
+    def avg_end_to_end_days(self):
+        return pd.DataFrame({
+            'avg_end_to_end_days': [self.df['end_to_end_approval_days'].mean()]
+    })
+    # -------------------------------
+    # % FX Impactful Transactions
+    # -------------------------------
+    def fx_impact_pct(self):
+        pct = self.df['is_fx_impactful'].mean() * 100
+
+        return pd.DataFrame({
+            'fx_impactful_pct': [pct]
+    })
+
+    # ---------------------------------
+    # FX Impact Summary
+    # --------------------------------
     def fx_impact_summary(self):
         return(
             self.df
@@ -282,34 +328,10 @@ class ExpenseKPICalculator:
             .sum()
             .reset_index()
         ) 
-    # -------------------------------------------
-    # % Late Submission
-    # -------------------------------------------
-    def late_submission_pct(self):
-        pct = self.df['is_late_submission'].mean() * 100
 
-        return pd.DataFrame({
-        'late_submission_pct': [pct]
-    })
-    # ---------------------------------------------
-    # Avg Approval Time
-    # ---------------------------------------------
-    def avg_end_to_end_days(self):
-        return pd.DataFrame({
-            'avg_end_to_end_days': [self.df['end_to_end_approval_days'].mean()]
-    })
-    # ----------------------------------------------
-    # % FX Impactful Transactions
-    # ---------------------------------------------
-    def fx_impact_pct(self):
-        pct = self.df['is_fx_impactful'].mean() * 100
-
-        return pd.DataFrame({
-            'fx_impactful_pct': [pct]
-    })
-    # --------------------------------------------
+    # --------------------------------------
     # Travel Cost per Employee
-    # --------------------------------------------
+    # --------------------------------------
     def travel_cost_per_employee(self):
         travel = self.df[self.df['is_travel'] == 1]['expense_approved_amount_rpt'].sum()
         employees = self.df['employee_id'].nunique()
@@ -327,56 +349,38 @@ class ExpenseKPICalculator:
         return pd.DataFrame({
         'internal_overhead_ratio': [(internal / total) * 100]
     })
-    # ------------------------------------------------
-    # Trend KPIs
-    # ------------------------------------------------
 
-    def monthly_trend(self):
-        df = self.df.copy()
-        df["year_month"] = pd.to_datetime(
-                df["transaction_date"]
-        ).dt.to_period("M")
 
-        return(
-            df
-            .groupby("year_month")["expense_approved_amount_rpt"]
-            .sum()
-            .reset_index()
-            .sort_values("year_month")
+    # --------------------------------------
+    # Executive KPIS
+    # --------------------------------------
+    def total_expense(self):
+        return self.df["expense_approved_amount_rpt"].sum()
+    
+    def total_transactions(self):
+        return len(self.df)
+    
+    def avg_expense(self):
+        return self.df["expense_approved_amount_rpt"].mean()
+    
+    def policy_risk_rate(self):
+        return self.df["is_policy_risk"].mean() *100    
+
+    def avg_approval_days(self):
+        return self.df["end_to_end_approval_days"].mean()
+
+    def median_approval_days(self):
+        return self.df["end_to_end_approval_days"].median()
+      
+    def approval_sla_breach_rate(self):
+        return (
+            (self.df["end_to_end_approval_days"] > APPROVAL_SLA_DAYS)
+            .mean()*100
         )
-    # ----------------------------------------------------
-    # Build KPI summary table
-    # ----------------------------------------------------
- 
-    def executive_summary(self):
 
-        return pd.DataFrame([{
-            "total_expense": self.total_expense(),
-            "total_transactions": self.total_transactions(),
-            "avg_expense": self.avg_expense(),
-            "policy_risk_rate": self.policy_risk_rate(),
-            "sla_breach_rate": self.approval_sla_breach_rate(),
-            "avg_approval_days": self.avg_approval_days(),
-
-            # Extract scalar values from DataFrame KPIs
-            "late_submission_rate_pct":
-                self.late_submission_pct()["late_submission_pct"].iloc[0],
-
-            "fx_impact_rate_pct":
-                self.fx_impact_pct()["fx_impactful_pct"].iloc[0],
-
-            "expense_per_active_employee":
-                self.expense_per_active_employee()["expense_per_active_employee"].iloc[0],
-
-            "travel_expense_pct":
-                self.travel_expense_pct()["travel_expense_pct"].iloc[0],
-
-            "customer_expense_pct":
-                self.customer_facing_pct()["customer_facing_pct"].iloc[0],
-
-            "high_risk_expense_pct":
-                self.high_risk_expense_pct()["high_risk_expense_pct"].iloc[0],
-        }])
+    def high_risk_transactions(self):
+        return self.df[self.df["is_policy_risk"]]
+        
     
 def main():
 
