@@ -9,7 +9,8 @@ APPROVAL_SLA_DAYS = 7
 class ExpenseKPICalculator:
 
     def __init__(self, df: pd.DataFrame):
-        self.df = df.copy() 
+        self.df = df.copy()
+        self._build_risk_framework() 
 
     # -------------------------------
     # Build KPI summary table
@@ -349,8 +350,76 @@ class ExpenseKPICalculator:
         return pd.DataFrame({
         'internal_overhead_ratio': [(internal / total) * 100]
     })
+    
+    # ----------------- RISK RATE CALCULATION ---------------------
+    def _build_risk_framework(self):
 
+    # -----------------------------
+    # Risk Score
+    # -----------------------------
+        self.df["risk_score"] = (
+            self.df["is_high_amount"].astype(int) * 1 +
+            self.df["is_late_submission"].astype(int) * 1 +
+            self.df["is_fx_impactful"].astype(int) * 1 +
+            self.df["is_very_high_amount"].astype(int) * 2
+        )
 
+    # -----------------------------
+    # Risk Tier
+    # -----------------------------
+        self.df["risk_tier"] = pd.cut(
+            self.df["risk_score"],
+            bins=[-1, 0, 1, 3, 10],
+            labels=["Low", "Medium", "High", "Critical"]
+        )
+
+    # -----------------------------
+    # Critical Risk Flag
+    # -----------------------------
+        self.df["critical_risk_flag"] = (
+            self.df["risk_score"] >= 3
+        ).astype(int)
+    
+    # # ---------------- Transaction Risk Rate ------------
+    # % of transactions that are medium or above
+    def transaction_risk_rate(self):
+        return pd.DataFrame({
+            "transaction_risk_rate_pct": [
+                (self.df["risk_score"] > 0).mean() * 100
+            ]
+        })
+    
+    # --------------- Spend Risk Rate --------------------
+    # % of spend coming from risky transactions
+    def spend_risk_rate(self):
+        total_spend = self.df["expense_approved_amount_rpt"].sum()
+
+        risky_spend = self.df[
+            self.df["risk_score"] > 0
+        ]["expense_approved_amount_rpt"].sum()
+
+        return pd.DataFrame({
+            "spend_risk_rate_pct": [
+                (risky_spend / total_spend) * 100
+            ]
+        })
+    
+    # ---------------- Critical Risk Rate ----------------------
+    def critical_risk_rate(self):
+        return pd.DataFrame({
+            "critical_risk_rate_pct": [
+                self.df["critical_risk_flag"].mean() * 100
+            ]
+        })
+    
+    # --------------- Risk Tier Distribution ------------------------
+    def risk_tier_distribution(self):
+        return (
+            self.df
+            .groupby("risk_tier")
+            .size()
+            .reset_index(name="transaction_count")
+        )
     # --------------------------------------
     # Executive KPIS
     # --------------------------------------
@@ -428,6 +497,12 @@ def main():
     travel_per_emp = kpi.travel_cost_per_employee()
     internal_ratio = kpi.internal_overhead_ratio()
 
+    # --------------- RISK TIER & SCORE ------------------
+    transaction_risk = kpi.transaction_risk_rate()
+    spend_risk = kpi.spend_risk_rate()
+    critical_risk = kpi.critical_risk_rate()
+    risk_distribution = kpi.risk_tier_distribution()
+
     # ---------------- Create Output Folder ----------------
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
 
@@ -460,6 +535,11 @@ def main():
     avg_end_to_end.to_parquet(OUTPUT_PATH.parent / "kpi_avg_end_to_end_days.parquet", index=False)
     fx_pct.to_parquet(OUTPUT_PATH.parent / "kpi_fx_impact_pct.parquet", index=False)
     fx_summary.to_parquet(OUTPUT_PATH.parent / "kpi_fx_summary.parquet", index=False)
+
+    transaction_risk.to_parquet(OUTPUT_PATH.parent / "kpi_transaction_risk_rate.parquet", index=False)
+    spend_risk.to_parquet(OUTPUT_PATH.parent / "kpi_spend_risk_rate.parquet", index=False)
+    critical_risk.to_parquet(OUTPUT_PATH.parent / "kpi_critical_risk_rate.parquet", index=False)
+    risk_distribution.to_parquet(OUTPUT_PATH.parent / "kpi_risk_tier_distribution.parquet", index=False)
 
     travel_per_emp.to_parquet(OUTPUT_PATH.parent / "kpi_travel_cost_per_employee.parquet", index=False)
     internal_ratio.to_parquet(OUTPUT_PATH.parent / "kpi_internal_overhead_ratio.parquet", index=False)
