@@ -92,6 +92,46 @@ class ExpenseKPICalculator:
         return pd.DataFrame({
         'travel_expense_pct': [(travel / total) * 100]
     })
+    # ---------------------------------
+    # Spend by Country
+    # ---------------------------------
+    def calculate_country_spend(self):
+        """
+        Calculate total approved spend by country.
+        Returns aggregated dataframe for dashboard consumption.
+        """
+
+        country_spend = (
+            self.df.groupby("country", as_index=False)
+            .agg(
+                expense_approved_amount_rpt=(
+                    "expense_approved_amount_rpt", "sum"
+                ),
+                total_transactions=("report_id", "count")
+            )
+        )
+
+        # Remove null / blank countries
+        country_spend = country_spend[
+            country_spend["country"].notna()
+        ]
+
+        # Calculate spend percentage
+        total_spend = country_spend[
+            "expense_approved_amount_rpt"
+        ].sum()
+
+        country_spend["spend_pct"] = (
+            country_spend["expense_approved_amount_rpt"] / total_spend
+        )   
+
+        # Sort descending for dashboard
+        country_spend = country_spend.sort_values(
+            "expense_approved_amount_rpt",
+            ascending=False
+        )
+
+        return country_spend
     # -------------------------------
     # Customer-Facing Expense %
     # -------------------------------
@@ -154,20 +194,88 @@ class ExpenseKPICalculator:
     # -------------------------------
     # Monthly Trend KPIs
     # -------------------------------
-
     def monthly_trend(self):
         df = self.df.copy()
-        df["year_month"] = pd.to_datetime(
-                df["transaction_date"]
-        ).dt.to_period("M")
 
-        return(
-            df
-            .groupby("year_month")["expense_approved_amount_rpt"]
+    # -------------------------------------------------
+    # Ensure year_month exists (defensive programming)
+    # -------------------------------------------------
+        if "year_month" not in df.columns:
+            if "transaction_date" in df.columns:
+                df["year_month"] = pd.to_datetime(
+                    df["transaction_date"]
+                ).dt.to_period("M")
+            else:
+                raise ValueError(
+                    "monthly_trend requires either 'year_month' "
+                    "or 'transaction_date' column."
+                )
+
+        # Convert Period to Timestamp safely
+        if str(df["year_month"].dtype).startswith("period"):
+            df["year_month"] = df["year_month"].dt.to_timestamp()
+        else:
+            df["year_month"] = pd.to_datetime(df["year_month"])
+
+        # Aggregate
+        monthly = (
+            df.groupby("year_month")["expense_approved_amount_rpt"]
             .sum()
             .reset_index()
             .sort_values("year_month")
         )
+
+        return monthly
+
+    # --------------------------------------
+    # Spend by Job Family
+    # --------------------------------------
+    def calculate_job_family_spend(self, top_n=6):
+        df = self.df.copy()
+
+        # Remove nulls
+        df = df[df["job_family"].notna()]
+
+        job_spend = (
+            df.groupby("job_family", as_index=False)
+            .agg(
+                expense_approved_amount_rpt=(
+                    "expense_approved_amount_rpt", "sum"
+                ),
+                total_transactions=("report_id", "count")
+            )
+            .sort_values(
+                "expense_approved_amount_rpt",
+                ascending=False
+            )
+        )
+
+        # ---- Top N + Others (recommended for pie chart clarity) ----
+        top = job_spend.head(top_n)
+        others = job_spend.iloc[top_n:]
+
+        if not others.empty:
+            others_row = pd.DataFrame({
+                "job_family": ["Others"],
+                "expense_approved_amount_rpt": [
+                    others["expense_approved_amount_rpt"].sum()
+                ],
+                "total_transactions": [
+                    others["total_transactions"].sum()
+                ]
+            })
+            top = pd.concat([top, others_row], ignore_index=True)
+
+        # Recalculate percentage
+        total_spend = top["expense_approved_amount_rpt"].sum()
+        top["spend_pct"] = (
+            top["expense_approved_amount_rpt"] / total_spend
+        )
+
+        return top
+
+ 
+
 
     # --------------------------------
     # Travel Dimension KPIs
@@ -469,6 +577,8 @@ def main():
     customer_pct = kpi.customer_facing_pct()
     expense_per_active = kpi.expense_per_active_employee()
     high_risk_pct = kpi.high_risk_expense_pct()
+    country_spend = kpi.calculate_country_spend()
+    job_family_spend = kpi.calculate_job_family_spend()
 
     # ---------------- Time KPIs ----------------
     rolling_3m = kpi.rolling_3m()
@@ -514,6 +624,8 @@ def main():
     rolling_3m.to_parquet(OUTPUT_PATH.parent / "kpi_rolling_3m.parquet", index=False)
     quarterly.to_parquet(OUTPUT_PATH.parent / "kpi_quarterly.parquet", index=False)
     monthly_trend.to_parquet(OUTPUT_PATH.parent / "kpi_monthly_trend.parquet", index=False)
+    country_spend.to_parquet(OUTPUT_PATH.parent / "kpi_country_spend.parquet",index=False)
+    job_family_spend.to_parquet(OUTPUT_PATH.parent / "kpi_job_family_spend.parquet",index=False)
 
     travel_pct.to_parquet(OUTPUT_PATH.parent / "kpi_travel_pct.parquet", index=False)
     customer_pct.to_parquet(OUTPUT_PATH.parent / "kpi_customer_pct.parquet", index=False)
